@@ -17,7 +17,7 @@ import (
 
 	// "github.com/golang/protobuf/ptypes/timestamp"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/encoding/gzip" //!uncomment
+	"google.golang.org/grpc/encoding/gzip" 
 )
 
 // ERROR caused: in client, we use proto.BroadcastClient.
@@ -102,8 +102,8 @@ func main(){
 				}
 
 				_, err := client.BroadcastMessage(context.Background(), msg, 
-				grpc.UseCompressor(gzip.Name),			//!uncomment
-				) //! Compressor fits, inside this
+				grpc.UseCompressor(gzip.Name),
+				) 
 				////  rpc BroadcastMessage(Message) returns (Close);
 				// Seems like BroadcastMsg sends message
 				if err != nil {

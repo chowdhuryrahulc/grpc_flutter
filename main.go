@@ -2,37 +2,28 @@ package main
 
 //todo PAGINATION IN DOCKER FLUTTER
 //todo My app will have enums. Create another flutter app
+//todo stats thread left
 
 //* DIDNT UNDERSTAND:
 // 1) grpc.WithStatsHandler(&ocgrpc.ClientHandler{}), : what is ocrpc? StatsHandler? And how to measure size of msg send?
 // "google.golang.org/grpc/stats"?
-// 2)
+// 2) stats package is left, to be done by employees perhaps. Can we clculate size with it?
+// Calculate wirelength of the payload, set tags, etc. Employees do that
+// 3) 
 
 import (
-	// "bytes"
-	// "compress/gzip"
-	// "compress/gzip"
 	"context"
-	// "io/ioutil"
-
-	// "encoding"
 	"fmt"
 	proto "lco/gen"
+	"lco/statr"
 
 	"log"
 	"net"
 	"os"
-
-	// "compress/gzip"
-	// "encoding/binary"
-	// "fmt"
-	// "io"
-	// "io/ioutil"
 	"sync"
-	// "github.com/grpc/grpc-go"
+	prt "google.golang.org/protobuf/proto"		//! WOWW, this implements the same stuff as done by "github.com/golang/protobuf/proto"
 
 	"google.golang.org/grpc"
-	// "google.golang.org/grpc/encoding"
 
 	_ "google.golang.org/grpc/encoding/gzip"
 	glog "google.golang.org/grpc/grpclog"
@@ -41,45 +32,9 @@ import (
 
 var grpcLog glog.LoggerV2 //! NECESSARY FOR BERLINGER
 
-// type compressor struct {
-// 	poolCompressor   sync.Pool
-// 	poolDecompressor sync.Pool
-// }
-
-// type writer struct {
-// 	gzip.Writer
-// 	pool *sync.Pool
-// }
-
-// func RegisterCompressor(c Compressor) {
-// 	registeredCompressor[c.Name()] = c
-// 	grpcutil.RegisteredCompressorNames = append(grpcutil.RegisteredCompressorNames, c.Name())
-// }
-
 func init() {
 	// NewLoggerV2(info, warning, error)
-	grpcLog = glog.NewLoggerV2(os.Stdout, os.Stdout, os.Stdout)
-	
-	// Create a new compressor using the gzip package.
-	
-	//* below are useless, bcoz they doesnt implement interface
-	//// bufw := new(bytes.Buffer)						//todo What is bytes.Buffer?
-	// w := gzip.NewWriter(ioutil.Discard)				//todo What is ioutil.Discard? or gzip.NewWriter?
-
-	// Create a Compressor value using the compressor object.
-	// compressor := encoding.Compressor(gzip.Name)		//! uncomment 
-	//todo How to implement Compressor interface?
-	//todo What is io.writer? io.WriteCloser? io.Reader?
-	// todo how to implement a interface in golang?
-	
-	// encoding.RegisterCompressor(compressor)			//! uncomment
-	// encoding.RegisterCompressor()
-
-	// c := &compressor{}
-	// c.poolCompressor.New = func() interface{} {
-	// 	return &writer{Writer: gzip.NewWriter(ioutil.Discard), pool: &c.poolCompressor}
-	// }
-	// encoding.RegisterCompressor(c)
+	grpcLog = glog.NewLoggerV2(os.Stdout, os.Stdout, os.Stdout)	
 }
 
 // todo Why did we create this? Connection struct? What is its purpose?
@@ -89,7 +44,6 @@ type Connection struct {
 	id     string
 	active bool
 	error  chan error // channel error (go channels)(error type channel)
-	//// Wht is chan error?
 }
 
 // we implement grpc on top of Server struct
@@ -120,9 +74,14 @@ func (s *Server) BroadcastMessage(ctx context.Context, msg *proto.Message) (*pro
 
 	wait := sync.WaitGroup{} // to implement go routines
 	done := make(chan int)   // to know when all the go routines are finished
+	
+	size := prt.Size(msg) 	//! gets msg size
+	grpcLog.Info("SIZEEEE BROD", size)	// returns 126, 184, 291 etc with compression and without compression
+	// Size is measured in bytes
+	//todo Why is the size same? With and without compression?
 
 	for _, conn := range s.Connection {
-		wait.Add(1) // wait + 1
+		wait.Add(1)
 		go func(msg *proto.Message, conn *Connection) {
 			defer wait.Done() // wait - 1
 
@@ -140,7 +99,6 @@ func (s *Server) BroadcastMessage(ctx context.Context, msg *proto.Message) (*pro
 	}
 
 	go func() {
-		// waits until all the go routines in previous function are done
 		wait.Wait()
 		close(done)
 	}()
@@ -149,7 +107,7 @@ func (s *Server) BroadcastMessage(ctx context.Context, msg *proto.Message) (*pro
 }
 
 func main() {
-	var connections []*Connection // Slice of connections
+	var connections []*Connection
 
 	server := &Server{connections, proto.UnimplementedBroadcastServer{}} //! Why did we write unimplement...?
 
@@ -192,16 +150,21 @@ func main() {
 
 	// Create a gRPC server with the stats handler.
 	grpcServer := grpc.NewServer()
+
+	// grpc.Creds(creds),			//todo from GarageDoor or other
+
 		// grpc.StatsHandler(&statr.StatrHandler{}),
-		
-		// grpc.Creds(creds),			//todo from GarageDoor or other
+		// grpcServer.RegisterService()
+		// server.Use(statsHandler)
 		// grpc.WithStatsHandler(),
 
-		//! This worked bcox it has all the 4 functions. 
-		//! Even if 1 is missing, it wont work
-		//todo So what .. can replace that. With official stats package
+
+		//? STATS NOTES (now not necessary probably. Check when you get time)
+		// This worked bcox it has all the 4 functions. 
+		// Even if 1 is missing, it wont work
+		// So what .. can replace that. With official stats package
 		// Also this is what &statr.StatrHandler{} and &ocgrpc.ClientHandler{} provided
-		// grpc.StatsHandler(&myStatsHandler{}), //! uncomment
+		// grpc.StatsHandler(&myStatsHandler{}), // uncomment
 
 		//// Deprecated grpc.WithCompressor(grpc.NewGZIPCompressor()), //? Also mosty done client side? Whyy?
 		// grpc.UseCompressor(gzip.Name), //? GZIP is mostly used client side. Why?? Bcoz we also need it server side
@@ -256,3 +219,44 @@ func (g *myStatsHandler) HandleConn(ctx context.Context, cs stats.ConnStats) {
 // This example creates a grpc.Server and adds a custom stats.Handler implementation called myStatsHandler as the stats handler. The myStatsHandler struct implements the stats.Handler interface, which requires you to implement the HandleRPC() and TagRPC() methods.
 // You can then register your gRPC service with the server and start it by calling grpcServer.Serve(). When the server receives an RPC request, it will call the HandleRPC() and TagRPC() methods of the myStatsHandler to handle the stats for that request.
 // This allows you to collect and process custom stats for your gRPC server.
+
+/*
+import (
+    "context"
+    "io"
+
+    "google.golang.org/grpc/stats"
+
+    "google.golang.org/grpc"
+    "google.golang.org/grpc/codes"
+)
+
+startServer starts a gRPC server and enables stats reporting.
+func startServer() {
+    // Create a new gRPC server.
+    server := grpc.NewServer()
+
+    // Register your gRPC service with the server.
+    // ...
+
+    // Create a new stats handler.
+    statsHandler := &stats.Handler{}
+
+    // Enable stats reporting for the server.
+    server.Use(statsHandler)
+
+    // Start the server.
+    // ...
+}
+
+// Your gRPC service implementation.
+type MyService struct{}
+
+func (s *MyService) MyMethod(ctx context.Context, req *MyRequest) (*MyResponse, error) {
+    // Report stats for the RPC.
+    statsHandler.HandleRPC(ctx, &stats.OutHeader{
+        Client: true,
+        Code:   codes.OK,
+        Ctx:
+
+*/
