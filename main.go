@@ -15,7 +15,6 @@ import (
 	"context"
 	"fmt"
 	proto "lco/gen"
-	"lco/statr"
 
 	"log"
 	"net"
@@ -79,11 +78,12 @@ func (s *Server) BroadcastMessage(ctx context.Context, msg *proto.Message) (*pro
 	grpcLog.Info("SIZEEEE BROD", size)	// returns 126, 184, 291 etc with compression and without compression
 	// Size is measured in bytes
 	//todo Why is the size same? With and without compression?
+	// todo Use a better logger in case of berlinger
 
 	for _, conn := range s.Connection {
 		wait.Add(1)
 		go func(msg *proto.Message, conn *Connection) {
-			defer wait.Done() // wait - 1
+			defer wait.Done()
 
 			if conn.active {
 				err := conn.stream.Send(msg)                      // send messages back to client (client attached to conn)
