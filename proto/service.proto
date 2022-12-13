@@ -1,0 +1,56 @@
+syntax = "proto3";
+
+// package proto: name of the folder in which this file resides
+package proto;
+
+option go_package = "./gen";
+
+// Each user will have a id and a name
+message User {
+    string id = 1;
+    string name = 2;
+}
+
+// User can send messages
+message Message {
+    string id = 1;
+    string content = 2;
+    string timestamp = 3;
+}
+
+// for Server to know if the client has connected
+message Connect {
+    User user = 1;
+    bool active = 2;
+}
+
+// when we disconnect, the server sends back a close to client
+message Close{}
+
+// services are functions (rpc functions)
+service Broadcast {
+    // recieves connection request and returns stream of all the messages
+    rpc CreateStream(Connect) returns (stream Message);
+    // BroadcastMessage: describes how we return those messages to the client??
+    rpc BroadcastMessage(Message) returns (Close); // descrobes how we get msg from client to server
+    // Close here is not important unless we want to detach from server
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
