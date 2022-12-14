@@ -16,6 +16,7 @@ message Message {
     string id = 1;
     string content = 2;
     string timestamp = 3;
+    string forward = 4;
 }
 
 // for Server to know if the client has connected
